@@ -1,0 +1,379 @@
+What effects imdb score by CEM KILICLI
+========================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+library(ggthemes) 
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(stringr)
+library(knitr)
+library(ggrepel)
+theme_set(theme_minimal(12)) 
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+setwd('/users/xeen/documents/BDA_505_FinalProject')
+getwd()
+mmd <- read.csv(file='movie_metadata.csv', header = TRUE, sep = ",")
+```
+
+# Univariate Plots Section
+This report explores a dataset containing attributes for approximately 5043 movies that is taken from imdb.com
+
+### Imdb Score Distribution
+```{r echo=TRUE, warning=FALSE}
+# Imdb score distribution
+# It is meaningfull to set binwidth to 0,1 to distrubute data more priciese also fill the histogram with color to make it visualy differentiable.
+ggplot(aes(x=imdb_score), data = mmd) +
+  geom_histogram(binwidth = 0.1, aes(fill = ..count..)) +
+  scale_x_continuous(breaks = 0:10) +
+  ggtitle("Imdb Score Distribution") +
+  labs(x = "IMDB Score", y = "Count of Movies")
+
+summary(mmd$imdb_score)
+
+# To check if there are some statistical outliers I use box plot. There are some outliers below and one at top, but we will exemine why they are outliers and if we need to remove them in next section
+boxplot(mmd$imdb_score) 
+```
+### Movie Director  Distribution
+```{r echo=FALSE, warning=FALSE}
+# Director distribution - Unfiltered data for directors is not meaningfull 
+# Create new data frame with directors that have more than 10
+mmd.fr.directors <- data.frame (mmd %>% 
+  group_by(director_name) %>%
+  summarise(count = n())%>%
+  filter(count >10, count <50))
+
+ggplot(aes(x = director_name, y = count), data = mmd.fr.directors)+
+  geom_jitter() +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+
+summary(mmd$director_name)
+
+```
+### Content Rating Distribution
+```{r echo=FALSE, warning=FALSE}
+# content_rating distribution
+ggplot(aes(x = content_rating), data= subset(mmd, !is.na(content_rating))) +
+  geom_bar() +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
+
+### Gross Distribution
+```{r echo=FALSE, warning=FALSE}
+# gross distribution
+ggplot(aes(x = gross), data= subset(mmd, !is.na(gross))) +
+  geom_histogram(aes(fill = ..count..),binwidth = 10000000)
+
+
+with(subset(mmd, gross <= 100), table(gross))
+
+```
+
+### Title Year  Distribution
+```{r echo=FALSE, warning=FALSE}
+
+# year distribution
+ggplot(aes(x = title_year), data= subset(mmd, !is.null(title_year) )) +
+  geom_histogram(bins = 100,aes(fill = ..count..)) +
+  labs(title="Histogram of Year",x="Year",y="Frequency")
+
+mmd[mmd$title_year>=2006,] %>%
+  ggplot(aes(x=title_year,y=imdb_score))+
+  geom_jitter(alpha=0.5,shape=1,color="blue") +
+  labs(title=" Years  vs. Imdb Score",x="Years",y="Imdb Score") 
+
+```
+
+
+### Budget  Distribution
+```{r echo=FALSE, warning=FALSE}
+# budget distribution
+ggplot(aes(x = budget), data= subset(mmd, !is.na(budget))) +
+  geom_histogram(binwidth = 10000000,aes(fill = ..count..)) +
+  xlim(0:5000000000)
+
+summary(mmd$budget)
+```
+
+### Profit  Distribution
+```{r echo=FALSE, warning=FALSE}
+# profit distribution
+# Create a column called profit and mutate the data frame mmd
+mmd$profit <- mmd$gross - mmd$budget
+
+summary(mmd$profit)
+ggplot(aes(x=profit), data = subset(mmd, profit > -4000000, !is.na(profit))) +
+  geom_histogram(binwidth = 1000000) +
+  ggtitle("profit Score Distribution") +
+  labs(x = "Profit", y = "Count of Movies")
+
+boxplot(mmd$profit)
+
+boxplot(x = mmd$profit, data = subset(mmd, profit < 2000000, !is.na(profit)))
+
+ggplot(aes(x=profit), data = subset(mmd, !is.na(profit))) +
+  geom_bar(stat = "identity", position = "identity")
+```
+
+### Critic Revies  Distribution
+```{r echo=FALSE, warning=FALSE}
+# Critic Revies distribution
+ggplot(aes(x = num_critic_for_reviews, y= imdb_score), data= subset(mmd, !is.null(num_critic_for_reviews))) +
+  geom_jitter(alpha = 1/4)
+
+```
+### Number of Voted Users  Distribution
+```{r echo=FALSE, warning=FALSE}
+# num_voted_users distribution
+ggplot(aes(x = num_voted_users), data = subset(mmd, !is.null(num_voted_users) )) +
+  geom_histogram()
+
+ggplot(aes(x = num_voted_users, y= imdb_score), data= subset(mmd, !is.null(num_voted_users))) +
+  geom_jitter(alpha = 1/4)
+
+```
+### Number of Users Reviews  Distribution
+```{r echo=FALSE, warning=FALSE}
+# num_user_for_reviews distribution
+ggplot(aes(x = num_user_for_reviews), data = subset(mmd, !is.null(num_user_for_reviews) )) +
+  geom_histogram()
+
+ggplot(aes(x = num_user_for_reviews, y= imdb_score), data= subset(mmd, !is.null(num_user_for_reviews))) +
+  geom_jitter(alpha = 1/4)
+```
+### movie_facebook_likes  Distribution
+```{r echo=FALSE, warning=FALSE}
+# movie_facebook_likes distribution
+ggplot(aes(x = movie_facebook_likes), data = subset(mmd, !is.null(movie_facebook_likes) )) +
+  geom_histogram()
+
+ggplot(aes(x = movie_facebook_likes, y= imdb_score), data= subset(mmd, !is.null(movie_facebook_likes))) +
+  geom_point(alpha = 1/4)
+```
+### Duration Revies  Distribution
+```{r echo=FALSE, warning=FALSE}
+# Duration distribution
+ggplot(aes(x = duration), data = subset(mmd, !is.null(duration) )) +
+  geom_histogram()
+
+ggplot(aes(x = duration, y= imdb_score), data= subset(mmd, !is.null(duration))) +
+  geom_jitter(alpha = 1/4)
+
+```
+### Movie Color  Distribution
+```{r echo=FALSE, warning=FALSE}
+# color distribution
+ggplot(aes(x = color), data= subset(mmd, !is.null(color) )) +
+  geom_bar(aes(fill = ..count..))
+
+with(subset(mmd, !is.na(color) ), table(color))
+# There is nothing important interesting in color It is highly dominated by color
+```
+
+### Language Distribution
+```{r echo=FALSE, warning=FALSE}
+# language distribution
+ggplot(aes(x = language), data = subset(mmd, !is.na(language))) +
+  geom_bar()
+
+mmd.fr.language <- data.frame (mmd %>% # create a new dataframe to understand language more detail
+  group_by(language) %>%
+  summarise(count = n())%>%
+  filter(count >10))
+
+ggplot(aes(x = language, y = count), data = subset(mmd.fr.language, !is.na(language))) +
+  geom_point() 
+
+# remove outliers
+ggplot(aes(x = language, y = count), data = subset(mmd.fr.language, count <50 ,!is.na(language))) +
+  geom_point() 
+# There is nothing important interesting in language. It is highly dominated by English
+
+```
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+Our dataset consists of 28 variables, with almost 5043 observations.
+
+```{r echo=FALSE, The_Date_Set_Overview}
+names(mmd)
+head(mmd)
+```
+
+### What is/are the main feature(s) of interest in your dataset?
+
+The main features are;
+ - Imdb score
+
+
+
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+
+ - Budget 
+ - Gross
+ - Profit = Gross - Budget
+ - Movie Director
+ - Content Rating
+ - Title Year
+ - Movie Facebook Likes
+
+
+### Did you create any new variables from existing variables in the dataset?
+
+I have created profit which equals to gross - budget
+
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+
+
+
+# Bivariate Plots Section
+
+```{r echo=FALSE, Bivariate_Plots}
+
+# Distribution of budget over years
+ggplot(aes(x= title_year, y = (budget/1000000)), data = mmd) +
+  geom_line() +
+  ggtitle("Movie Budget Distribution Over Years") +
+  labs(x = "Years", y = "Budget in Millions")
+
+ggplot(aes(x= title_year, y = (budget/1000000)), data = subset(mmd, budget > 0)) +
+  geom_smooth()
+
+ggplot(aes(x= title_year, y = (budget/1000000)), data = subset(mmd, budget > 0)) +
+  geom_line()
+summary(mmd$budget/1000000)
+
+# Removed NA & OutLiers(Q3+(1.5*IQR)) from the data
+ggplot(aes(x= title_year, y = (budget/1000000)), data = subset(mmd, budget < 75000000),!is.na(budget)) +
+  geom_jitter(alpha = 1/4) +
+  geom_smooth()
+
+with(subset(mmd,budget < 75000000, !is.na(budget)), summary(budget/1000000))
+
+ggplot(aes(x= gross, y = (gross/1000000)), data = mmd) +
+  geom_jitter(alpha = 1/4) +
+  geom_smooth()
+
+summary(mmd$gross)
+
+ggplot(aes(x= title_year, y = (gross/1000000)), data = subset(mmd, !is.na(gross))) +
+  geom_jitter(alpha = 1/4) +
+  geom_smooth()
+
+with(subset(mmd, gross < 100000000, !is.na(gross)), summary(gross/1000000))
+
+ggplot(aes(x= title_year, y = (gross/1000000)), data = subset(mmd, gross < 100000000, !is.na(gross))) +
+  geom_jitter(alpha = 1/4) +
+  geom_smooth()
+
+### Budget vs Imdb Score
+ggplot(aes(x=imdb_score, y = budget), data = subset(mmd, budget < 75000000),!is.na(budget)) +
+  geom_jitter(binwidth = 1000000, alpha = 1/4) +
+  ggtitle("Effect of Budget to IMDB SCORE") +
+  labs(x = "BUDGET", y = "IMDB SCORE")
+
+mmd[mmd$title_year>=2006,] %>% 
+  mutate(budget,profit = gross- budget) %>% 
+  filter(profit > 0) %>% 
+  ggplot(aes(x=budget,y=profit))+geom_point()+geom_smooth(method = "lm") +
+  labs(title=" Budget vs. Profit",x="Budget",y="Profit") 
+
+
+mmd[mmd$title_year>=2006,] %>% 
+  filter(facenumber_in_poster < 10) %>% 
+  ggplot(aes(x=imdb_score,y=facenumber_in_poster))+geom_point()+geom_smooth(method = "auto") +
+  labs(title=" Faces in Poster vs. Imdb Score",x="Imdb Score",y="Faces in Poster") 
+
+
+# time vs Imdb score
+# duration vs imdb score
+
+```
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+
+### What was the strongest relationship you found?
+
+
+
+
+# Multivariate Plots Section
+
+```{r echo=FALSE, Multivariate_Plots}
+
+mmd %>% mutate(profit = gross - budget)%>% 
+  group_by(director_name) %>% 
+  summarise(avg_rating = mean(imdb_score),avg_profit = mean(profit), num = n()) %>%
+  filter(num >=4,avg_rating>7.5,avg_profit > 1e+5) %>% 
+  ggplot(aes(x=avg_rating,y=avg_profit,label = director_name)) + geom_point() + geom_text_repel() +
+  labs(title="Directors distributed over Profit vs. Imdb Score",x="Imdb Score",y="Average Profit") 
+
+# gros vs. imdb score over time
+ggplot(aes(x = title_year, y = gross), data= subset(mmd, gross < 2e+8, !is.na(gross))) +
+  geom_point(aes(color = imdb_score))
+
+
+# remove lang from story (Remove eng from )
+mmd %>% mutate(profit = gross - budget)%>% 
+  filter(profit >= -2e+9, title_year > 1970, !is.na(language)) %>% 
+  ggplot(aes(x = title_year, y = profit)) +
+  geom_point(aes(color = language))+
+  geom_smooth()
+
+
+mmd %>% mutate(profit = gross - budget)%>% 
+  group_by(language) %>% 
+  summarise(avg_rating = mean(imdb_score),avg_profit = mean(profit), count = n()) %>% 
+  filter(count >=10,avg_rating>2,avg_profit > 1e+5) %>% 
+  ggplot(aes(x=avg_rating,y=avg_profit,label = language)) + geom_point() 
+
+
+```
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. Were there features that strengthened each other in terms of looking at your feature(s) of interest?
+
+### Were there any interesting or surprising interactions between features?
+
+### OPTIONAL: Did you create any models with your dataset? Discuss the strengths and limitations of your model.
+
+------
+
+# Final Plots and Summary
+
+### Plot One
+```{r echo=FALSE, Plot_One}
+
+```
+
+### Description One
+
+
+### Plot Two
+```{r echo=FALSE, Plot_Two}
+
+```
+
+### Description Two
+
+
+### Plot Three
+```{r echo=FALSE, Plot_Three}
+
+```
+
+### Description Three
+
+------
+
+# Reflection
